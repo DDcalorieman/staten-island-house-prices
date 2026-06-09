@@ -1,26 +1,17 @@
 # Staten Island House Price Portal
 
-Interactive Staten Island rolling sales dashboard with:
-
-- charts;
-- KPIs;
-- ZIP code choropleth maps;
-- filtering;
-- CSV exports.
+Static GitHub Pages portal for exploring NYC Staten Island rolling sales data.
 
 ## Files
+- `index.html` — the portal UI and analysis logic.
+- `data.js` — preloaded sales dataset generated from the uploaded Excel file.
 
-- index.html
-- data.js
+## Deploy on GitHub Pages
+1. Create a GitHub repo.
+2. Upload `index.html` and `data.js` to the repo root.
+3. Go to Settings → Pages.
+4. Choose Deploy from branch → main → root.
+5. Open the GitHub Pages URL.
 
-## Deployment
-
-Upload both files to a GitHub repository root and enable GitHub Pages.
-
-## Map Sources
-
-NYC Open Data MODZCTA GeoJSON:
-https://data.cityofnewyork.us/resource/pri4-ifjk.geojson?$limit=5000
-
-NYC Open Data NTA GeoJSON:
-https://data.cityofnewyork.us/resource/9nt8-h7nd.geojson?$limit=5000
+## Notes
+Default analysis excludes sales below $100,000 and records with missing/zero gross square feet.
