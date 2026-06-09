@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Staten Island House Price Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="data.js"></script>
+  <style>
+    :root{--bg:#f5f7fb;--card:#fff;--ink:#1f2937;--muted:#6b7280;--line:#e5e7eb;--primary:#2563eb;--dark:#1e40af;--green:#047857;}
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+    header{background:linear-gradient(135deg,#0f172a,#1d4ed8);color:#fff;padding:28px 36px} header h1{margin:0 0 8px;font-size:30px} header p{margin:0;color:#dbeafe;line-height:1.45;max-width:980px}
+    .app{display:grid;grid-template-columns:320px 1fr;gap:20px;padding:20px} aside,.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 6px 18px rgba(15,23,42,.05)} aside{height:fit-content;position:sticky;top:20px}.section-title{font-size:16px;margin:0 0 12px}label{display:block;font-size:13px;font-weight:700;margin:14px 0 6px;color:#374151} input,select,button{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:white}select[multiple]{min-height:105px}button{cursor:pointer;background:var(--primary);color:white;border:none;font-weight:700;margin-top:10px}button:hover{background:var(--dark)}.hint,.note{font-size:12px;color:var(--muted);line-height:1.45}.grid{display:grid;gap:16px}.kpis{grid-template-columns:repeat(5,minmax(140px,1fr))}.two-col{grid-template-columns:1fr 1fr;margin-top:16px}.kpi-label{color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}.kpi-value{margin-top:8px;font-size:24px;font-weight:800}.kpi-sub{margin-top:4px;color:var(--muted);font-size:12px}.tabs{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}.tab{width:auto;padding:9px 13px;background:white;color:var(--ink);border:1px solid var(--line)}.tab.active{background:var(--primary);color:white;border-color:var(--primary)}.table-wrap{overflow:auto;max-height:560px;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;background:white;font-size:13px}th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{background:#f9fafb;position:sticky;top:0;z-index:1}.pill{display:inline-block;padding:3px 8px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700}.meta{display:grid;gap:7px;margin-top:8px}.meta div{font-size:12px;color:var(--muted)}@media(max-width:1000px){.app,.kpis,.two-col{grid-template-columns:1fr}aside{position:static}}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Staten Island House Price Portal</h1>
+  <p>Pre-loaded NYC rolling sales data. Explore sale prices and price per gross sq ft by neighbourhood, property type, zip code, building class, age band and size band.</p>
+</header>
+<div class="app">
+  <aside>
+    <h2 class="section-title">Data loaded</h2>
+    <div class="meta" id="metaBox"></div>
+    <hr style="border:none;border-top:1px solid var(--line);margin:18px 0;" />
+    <h2 class="section-title">Filters</h2>
+    <label>Neighbourhood</label><select id="neighborhoodFilter" multiple></select>
+    <label>Building class category</label><select id="categoryFilter" multiple></select>
+    <label>Zip code</label><select id="zipFilter" multiple></select>
+    <label>Building class</label><select id="buildingClassFilter" multiple></select>
+    <label>Age band</label><select id="ageBandFilter" multiple></select>
+    <label>Minimum sale price</label><input type="number" id="minPrice" value="100000" step="50000" />
+    <label>Maximum sale price</label><input type="number" id="maxPrice" placeholder="No maximum" step="50000" />
+    <label>Minimum gross sq ft</label><input type="number" id="minSqft" value="300" step="100" />
+    <label>Group statistics by</label>
+    <select id="groupBy">
+      <option value="NEIGHBORHOOD">Neighbourhood</option>
+      <option value="BUILDING CLASS CATEGORY">Building class category</option>
+      <option value="BUILDING CLASS AT TIME OF SALE">Building class</option>
+      <option value="ZIP CODE">Zip code</option>
+      <option value="DECADE BUILT">Decade built</option>
+      <option value="AGE BAND">Age band</option>
+      <option value="SIZE BAND">Gross sq ft band</option>
+    </select>
+    <button id="applyBtn">Apply filters</button>
+    <button id="resetBtn" style="background:#6b7280;">Reset filters</button>
+    <button id="downloadBtn" style="background:#047857;">Download filtered CSV</button>
+    <div class="note" style="margin-top:14px;">Default cleaning excludes sales below $100k and records with zero/missing gross sq ft.</div>
+  </aside>
+  <main>
+    <div class="grid kpis">
+      <div class="card"><div class="kpi-label">Valid sales</div><div id="kpiSales" class="kpi-value">—</div><div class="kpi-sub">After filters</div></div>
+      <div class="card"><div class="kpi-label">Median price</div><div id="kpiMedianPrice" class="kpi-value">—</div><div class="kpi-sub">Filtered dataset</div></div>
+      <div class="card"><div class="kpi-label">Average price</div><div id="kpiAvgPrice" class="kpi-value">—</div><div class="kpi-sub">Filtered dataset</div></div>
+      <div class="card"><div class="kpi-label">Median $/sq ft</div><div id="kpiMedianPpsf" class="kpi-value">—</div><div class="kpi-sub">Price / gross sq ft</div></div>
+      <div class="card"><div class="kpi-label">Avg gross sq ft</div><div id="kpiAvgSqft" class="kpi-value">—</div><div class="kpi-sub">Building size</div></div>
+    </div>
+    <div class="tabs"><button class="tab active" data-view="charts">Charts</button><button class="tab" data-view="groups">Grouped stats</button><button class="tab" data-view="sales">Sales records</button><button class="tab" data-view="insights">Insights</button></div>
+    <section id="chartsView">
+      <div class="grid two-col"><div class="card"><h2 class="section-title">Median sale price</h2><canvas id="priceChart"></canvas></div><div class="card"><h2 class="section-title">Median $/gross sq ft</h2><canvas id="ppsfChart"></canvas></div></div>
+      <div class="grid two-col"><div class="card"><h2 class="section-title">Sale price distribution</h2><canvas id="histChart"></canvas></div><div class="card"><h2 class="section-title">Price vs gross sq ft</h2><canvas id="scatterChart"></canvas></div></div>
+    </section>
+    <section id="groupsView" style="display:none;"><div class="card"><h2 class="section-title">Grouped statistics</h2><div class="hint" style="margin-bottom:12px;">Groups with fewer than 5 sales are hidden.</div><div class="table-wrap"><table id="groupTable"></table></div></div></section>
+    <section id="salesView" style="display:none;"><div class="card"><h2 class="section-title">Filtered sales records</h2><div class="hint" style="margin-bottom:12px;">Showing first 500 records. Download CSV for full filtered data.</div><div class="table-wrap"><table id="salesTable"></table></div></div></section>
+    <section id="insightsView" style="display:none;"><div class="card"><h2 class="section-title">Auto-generated observations</h2><div id="insightsBox" style="line-height:1.6;"></div></div></section>
+  </main>
+</div>
+<script>
+let cleanData = window.SALES_DATA || [];
+let filteredData = [];
+let priceChart, ppsfChart, histChart, scatterChart;
+const $ = id => document.getElementById(id);
+
+$('applyBtn').addEventListener('click', applyFilters);
+$('resetBtn').addEventListener('click', resetFilters);
+$('downloadBtn').addEventListener('click', downloadFilteredCSV);
+document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
+$('groupBy').addEventListener('change', applyFilters);
+
+document.addEventListener('DOMContentLoaded', init);
+function init(){
+  $('metaBox').innerHTML = `<div><strong>Source:</strong> ${escapeHtml(SALES_METADATA.source_file)}</div><div><strong>Total rows:</strong> ${num(SALES_METADATA.rows_total,0)}</div><div><strong>Default valid rows:</strong> ${num(SALES_METADATA.rows_market_valid_default,0)}</div><div><strong>Cleaning:</strong> ${escapeHtml(SALES_METADATA.default_cleaning)}</div>`;
+  populateFilters(cleanData); applyFilters();
+}
+function populateFilters(data){
+  fill('neighborhoodFilter', uniq(data.map(r=>r['NEIGHBORHOOD'])));
+  fill('categoryFilter', uniq(data.map(r=>r['BUILDING CLASS CATEGORY'])));
+  fill('zipFilter', uniq(data.map(r=>String(r['ZIP CODE']||''))));
+  fill('buildingClassFilter', uniq(data.map(r=>r['BUILDING CLASS AT TIME OF SALE'])));
+  fill('ageBandFilter', uniq(data.map(r=>r['AGE BAND'])));
+}
+function fill(id, vals){$(id).innerHTML = vals.filter(Boolean).map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('')}
+function uniq(vals){return [...new Set(vals.filter(v=>v!==null&&v!==undefined&&String(v).trim()!==''))].sort((a,b)=>String(a).localeCompare(String(b)))}
+function sel(id){return Array.from($(id).selectedOptions).map(o=>o.value)}
+function n(v){return Number(v)||0}
+function applyFilters(){
+  const ns=sel('neighborhoodFilter'), cs=sel('categoryFilter'), zs=sel('zipFilter'), bs=sel('buildingClassFilter'), as=sel('ageBandFilter');
+  const minP=n($('minPrice').value), maxP=n($('maxPrice').value), minS=n($('minSqft').value);
+  filteredData = cleanData.filter(r => {
+    if (ns.length && !ns.includes(r['NEIGHBORHOOD'])) return false;
+    if (cs.length && !cs.includes(r['BUILDING CLASS CATEGORY'])) return false;
+    if (zs.length && !zs.includes(String(r['ZIP CODE']||''))) return false;
+    if (bs.length && !bs.includes(r['BUILDING CLASS AT TIME OF SALE'])) return false;
+    if (as.length && !as.includes(r['AGE BAND'])) return false;
+    if (n(r['SALE PRICE']) < minP) return false;
+    if (maxP>0 && n(r['SALE PRICE']) > maxP) return false;
+    if (n(r['GROSS SQUARE FEET']) < minS) return false;
+    if (!n(r['PRICE PER SQFT'])) return false;
+    return true;
+  });
+  updateAll();
+}
+function resetFilters(){['neighborhoodFilter','categoryFilter','zipFilter','buildingClassFilter','ageBandFilter'].forEach(id=>Array.from($(id).options).forEach(o=>o.selected=false));$('minPrice').value=100000;$('maxPrice').value='';$('minSqft').value=300;$('groupBy').value='NEIGHBORHOOD';applyFilters();}
+function updateAll(){updateKPIs();updateGroupTable();updateSalesTable();updateCharts();updateInsights();}
+function vals(field){return filteredData.map(r=>n(r[field])).filter(Number.isFinite)}
+function updateKPIs(){ $('kpiSales').textContent=num(filteredData.length,0); $('kpiMedianPrice').textContent=money(median(vals('SALE PRICE'))); $('kpiAvgPrice').textContent=money(mean(vals('SALE PRICE'))); $('kpiMedianPpsf').textContent=money(median(vals('PRICE PER SQFT')),0); $('kpiAvgSqft').textContent=num(mean(vals('GROSS SQUARE FEET')),0); }
+function groupedStats(){
+  const g=$('groupBy').value, groups={}; filteredData.forEach(r=>{const k=r[g]||'Unknown'; (groups[k] ||= []).push(r)});
+  return Object.entries(groups).map(([group,rows])=>({group,sales:rows.length,median_price:median(rows.map(r=>n(r['SALE PRICE']))),average_price:mean(rows.map(r=>n(r['SALE PRICE']))),min_price:Math.min(...rows.map(r=>n(r['SALE PRICE']))),max_price:Math.max(...rows.map(r=>n(r['SALE PRICE']))),median_ppsf:median(rows.map(r=>n(r['PRICE PER SQFT']))),average_ppsf:mean(rows.map(r=>n(r['PRICE PER SQFT']))),average_sqft:mean(rows.map(r=>n(r['GROSS SQUARE FEET'])))})).filter(x=>x.sales>=5).sort((a,b)=>b.median_price-a.median_price);
+}
+function updateGroupTable(){const s=groupedStats(); $('groupTable').innerHTML=`<thead><tr><th>Group</th><th>Sales</th><th>Median price</th><th>Average price</th><th>Min</th><th>Max</th><th>Median $/sq ft</th><th>Avg $/sq ft</th><th>Avg sq ft</th></tr></thead><tbody>${s.map(r=>`<tr><td><span class="pill">${escapeHtml(r.group)}</span></td><td>${num(r.sales,0)}</td><td>${money(r.median_price)}</td><td>${money(r.average_price)}</td><td>${money(r.min_price)}</td><td>${money(r.max_price)}</td><td>${money(r.median_ppsf,0)}</td><td>${money(r.average_ppsf,0)}</td><td>${num(r.average_sqft,0)}</td></tr>`).join('')}</tbody>`;}
+function updateSalesTable(){const rows=filteredData.slice(0,500); $('salesTable').innerHTML=`<thead><tr><th>Neighbourhood</th><th>Category</th><th>Address</th><th>Zip</th><th>Class</th><th>Year</th><th>Gross sq ft</th><th>Sale price</th><th>$/sq ft</th><th>Sale date</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r['NEIGHBORHOOD'])}</td><td>${escapeHtml(r['CATEGORY SHORT'])}</td><td>${escapeHtml(r['ADDRESS'])}</td><td>${escapeHtml(r['ZIP CODE'])}</td><td>${escapeHtml(r['BUILDING CLASS AT TIME OF SALE'])}</td><td>${r['YEAR BUILT']||''}</td><td>${num(r['GROSS SQUARE FEET'],0)}</td><td>${money(r['SALE PRICE'])}</td><td>${money(r['PRICE PER SQFT'],0)}</td><td>${escapeHtml(r['SALE DATE'])}</td></tr>`).join('')}</tbody>`;}
+function updateCharts(){
+  const stats=groupedStats().slice(0,15); const labels=stats.map(x=>x.group);
+  priceChart=chart(priceChart,'priceChart','bar',{labels,datasets:[{label:'Median sale price',data:stats.map(x=>Math.round(x.median_price))}]});
+  ppsfChart=chart(ppsfChart,'ppsfChart','bar',{labels,datasets:[{label:'Median $/sq ft',data:stats.map(x=>Math.round(x.median_ppsf))}]});
+  const h=histogram(vals('SALE PRICE'),10); histChart=chart(histChart,'histChart','bar',{labels:h.labels,datasets:[{label:'Sales',data:h.counts}]});
+  const points=filteredData.slice(0,1000).map(r=>({x:n(r['GROSS SQUARE FEET']),y:n(r['SALE PRICE'])})); scatterChart=chart(scatterChart,'scatterChart','scatter',{datasets:[{label:'Sales',data:points}]},{scales:{x:{title:{display:true,text:'Gross sq ft'}},y:{title:{display:true,text:'Sale price'},ticks:{callback:v=>money(v)}}}});
+}
+function chart(old,id,type,data,options={}){if(old)old.destroy(); return new Chart($(id),{type,data,options:{responsive:true,plugins:{tooltip:{callbacks:{label:c=> type==='scatter'?`Sq ft: ${num(c.raw.x,0)}, Price: ${money(c.raw.y)}`:`${c.dataset.label}: ${money(c.raw)}`}}},...options}})}
+function updateInsights(){const s=groupedStats(); const topP=[...s].sort((a,b)=>b.median_price-a.median_price)[0], topF=[...s].sort((a,b)=>b.median_ppsf-a.median_ppsf)[0], lowF=[...s].sort((a,b)=>a.median_ppsf-b.median_ppsf)[0], active=[...s].sort((a,b)=>b.sales-a.sales)[0]; const label=$('groupBy').selectedOptions[0].textContent; $('insightsBox').innerHTML=`<p>The current view contains <strong>${num(filteredData.length,0)}</strong> valid sales. Median price is <strong>${money(median(vals('SALE PRICE')))}</strong> and median $/sq ft is <strong>${money(median(vals('PRICE PER SQFT')),0)}</strong>.</p><ul><li>Highest median price by <strong>${label}</strong>: <strong>${escapeHtml(topP?.group||'N/A')}</strong> at <strong>${money(topP?.median_price||0)}</strong>.</li><li>Highest median $/sq ft: <strong>${escapeHtml(topF?.group||'N/A')}</strong> at <strong>${money(topF?.median_ppsf||0,0)}</strong>.</li><li>Lowest median $/sq ft: <strong>${escapeHtml(lowF?.group||'N/A')}</strong> at <strong>${money(lowF?.median_ppsf||0,0)}</strong>.</li><li>Most active group: <strong>${escapeHtml(active?.group||'N/A')}</strong> with <strong>${num(active?.sales||0,0)}</strong> sales.</li></ul><p>Median values are usually more useful than averages because nominal transfers and unusual properties can distort mean values.</p>`;}
+function switchView(v){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.view===v));['charts','groups','sales','insights'].forEach(x=>$(x+'View').style.display=x===v?'':'none')}
+function histogram(values,bins){if(!values.length)return{labels:[],counts:[]}; const min=Math.min(...values), max=Math.max(...values), step=(max-min)/bins||1; const counts=Array(bins).fill(0), labels=[]; for(let i=0;i<bins;i++){labels.push(`${money(min+i*step,0)}-${money(min+(i+1)*step,0)}`)} values.forEach(v=>{let idx=Math.floor((v-min)/step); if(idx>=bins)idx=bins-1; counts[idx]++}); return{labels,counts}}
+function mean(a){a=a.filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:0} function median(a){a=a.filter(Number.isFinite).sort((x,y)=>x-y); if(!a.length)return 0; const m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2}
+function money(v,d=0){return '$'+(Number(v)||0).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d})} function num(v,d=0){return (Number(v)||0).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d})}
+function escapeHtml(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}
+function downloadFilteredCSV(){const rows=filteredData.map(r=>({neighborhood:r['NEIGHBORHOOD'],category:r['BUILDING CLASS CATEGORY'],building_class:r['BUILDING CLASS AT TIME OF SALE'],address:r['ADDRESS'],zip:r['ZIP CODE'],sale_price:r['SALE PRICE'],gross_sqft:r['GROSS SQUARE FEET'],price_per_sqft:Math.round(n(r['PRICE PER SQFT'])),year_built:r['YEAR BUILT'],age_band:r['AGE BAND'],size_band:r['SIZE BAND'],sale_date:r['SALE DATE']})); const csv=toCSV(rows); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='filtered_staten_island_sales.csv'; a.click(); URL.revokeObjectURL(url)}
+function toCSV(rows){if(!rows.length)return''; const h=Object.keys(rows[0]); return [h.join(','),...rows.map(r=>h.map(k=>csv(r[k])).join(','))].join('\n')} function csv(v){const s=String(v??''); return /[",\n]/.test(s)?`"${s.replaceAll('"','""')}"`:s}
+</script>
+</body>
+</html>
